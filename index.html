@@ -1,0 +1,190 @@
+// --- Export Excel with Full ("All") Borders on Every Cell & Header ---
+  async function exportExcel(){
+    if(!entries.length){ alert('No entries to export yet.'); return; }
+    
+    // Determine Month Banner Text
+    const firstDate = entries[0].date;
+    const [y, m] = firstDate.split('-');
+    const monthShort = new Date(y + '-' + m + '-01').toLocaleString('en-US', { month: 'long' }).toUpperCase();
+    const yearShort = y.slice(-2);
+    const titleText = `${monthShort} ${yearShort}  MONTH EXPENSES`;
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Expense Ledger';
+    const ws = workbook.addWorksheet('Sheet1', {
+      pageSetup: {
+        paperSize: 9,              // 9 = A4 Paper
+        orientation: 'landscape',  // Landscape to fit all 14 columns across A4 width
+        fitToPage: true,
+        fitToWidth: 1,             // All columns fit 1 page wide
+        fitToHeight: 0,
+        margins: {
+          left: 0.4, right: 0.4,
+          top: 0.5, bottom: 0.5,
+          header: 0.3, footer: 0.3
+        },
+        horizontalCentered: true
+      },
+      views: [{ showGridLines: true }]
+    });
+
+    // 14 Columns width configuration
+    ws.columns = [
+      { key: 'date',   width: 14.0 }, // Col A
+      { key: 'day',    width: 14.0 }, // Col B
+      { key: 'place',  width: 28.0 }, // Col C
+      { key: 'dept',   width: 16.0 }, // Col D
+      { key: 'travel', width: 12.0 }, // Col E
+      { key: 'lodge',  width: 12.0 }, // Col F
+      { key: 'local',  width: 11.0 }, // Col G
+      { key: 'brk',    width: 11.0 }, // Col H
+      { key: 'lunch',  width: 10.0 }, // Col I
+      { key: 'dinner', width: 10.0 }, // Col J
+      { key: 'snaks',  width: 11.0 }, // Col K
+      { key: 'petrol', width: 11.0 }, // Col L
+      { key: 'toll',   width: 11.0 }, // Col M
+      { key: 'total',  width: 12.0 }  // Col N
+    ];
+
+    // Standard Grid Thin Border (applied to all sides)
+    const allThinBorder = {
+      top:    { style: 'thin', color: { argb: 'FF000000' } },
+      left:   { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      right:  { style: 'thin', color: { argb: 'FF000000' } }
+    };
+
+    // Header & Total Row Heavy Border (medium top/bottom with thin inner walls)
+    const headerBorder = (colIdx) => ({
+      top:    { style: 'medium', color: { argb: 'FF000000' } },
+      bottom: { style: 'medium', color: { argb: 'FF000000' } },
+      left:   { style: colIdx === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
+      right:  { style: colIdx === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
+    });
+
+    // --- ROW 1: TITLE BANNER ---
+    ws.mergeCells('A1:N1');
+    const r1 = ws.getRow(1);
+    r1.height = 24;
+    const a1 = ws.getCell('A1');
+    a1.value = titleText;
+    a1.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF00B050' } };
+    a1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD0CFCF' } };
+    a1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Apply full borders across all merged cells in Row 1
+    for(let col = 1; col <= 14; col++){
+      ws.getCell(1, col).border = {
+        top:    { style: 'medium', color: { argb: 'FF000000' } },
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        left:   { style: col === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
+        right:  { style: col === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
+      };
+    }
+
+    // --- ROW 2: COLUMN HEADERS ---
+    const headers = [
+      'DATE', 'DAY', 'CUSTUMER PLACE', 'DEPARTMENT',
+      'BUS/TRAIN/FLIGHT', 'LODGE (STAY)', 'LOCAL TRANSPORT',
+      'BRK FAST', 'LUNCH', 'DINNER', 'SNAKS',
+      'PETROL', 'TOLL/EXTRA', 'TOTAL'
+    ];
+    const r2 = ws.addRow(headers);
+    r2.height = 42;
+    for(let col = 1; col <= 14; col++){
+      const c = r2.getCell(col);
+      c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+      c.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: col === 14 ? 'FFF2F2F2' : 'FFDADDE1' }
+      };
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      c.border = headerBorder(col);
+    }
+
+    // --- ROWS 3+: DATA ROWS ---
+    const startRow = 3;
+    entries.forEach((e, idx) => {
+      const rowNum = startRow + idx;
+      const isSunday = (e.day || '').toUpperCase() === 'SUNDAY';
+      const [year, month, day] = e.date.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
+
+      const rowVals = [
+        dateObj,
+        e.day,
+        e.place || '',
+        e.dept || '',
+        e.travel || null,
+        e.lodge || null,
+        e.local || null,
+        e.brk || null,
+        e.lunch || null,
+        e.dinner || null,
+        e.snaks || null,
+        e.petrol || null,
+        e.toll || null,
+        { formula: `SUM(E${rowNum}:M${rowNum})` }
+      ];
+
+      const r = ws.addRow(rowVals);
+      r.height = 20;
+
+      for(let col = 1; col <= 14; col++){
+        const c = r.getCell(col);
+        c.font = { name: 'Calibri', size: 10, bold: false };
+        // Complete thin box border around every data cell
+        c.border = allThinBorder;
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Sunday Highlight Fill
+        if(isSunday){
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFC000' } };
+        }
+
+        // Date Column Format
+        if(col === 1){
+          c.numFmt = 'd/mmm/yyyy;@';
+        }
+
+        // Expense Numeric Columns Format
+        if(col >= 5 && col <= 14){
+          c.numFmt = '#,##0.00;(#,##0.00);"-"';
+        }
+      }
+    });
+
+    const lastDataRow = startRow + entries.length - 1;
+
+    // --- TOTAL FOOTER ROW ---
+    const totalRowIndex = lastDataRow + 1;
+    const footerVals = new Array(14).fill(null);
+    footerVals[0] = ''; // Col A
+    footerVals[13] = { formula: `SUM(N${startRow}:N${lastDataRow})` }; // Col N
+
+    const totalRow = ws.addRow(footerVals);
+    totalRow.height = 22;
+
+    for(let col = 1; col <= 14; col++){
+      const c = totalRow.getCell(col);
+      c.font = { name: 'Calibri', size: 11, bold: true };
+      c.alignment = { horizontal: 'center', vertical: 'middle' };
+      // All borders enclosed for the total row
+      c.border = {
+        top:    { style: 'medium', color: { argb: 'FF000000' } },
+        bottom: { style: 'double', color: { argb: 'FF000000' } },
+        left:   { style: col === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
+        right:  { style: col === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
+      };
+      if(col === 14){
+        c.numFmt = '#,##0.00';
+      }
+    }
+
+    // Generate blob and trigger file download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const filename = `${titleText.replace(/\s+/g, '_')}.xlsx`;
+    saveAs(blob, filename);
+  }
