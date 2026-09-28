@@ -1,190 +1,391 @@
-// --- Export Excel with Full ("All") Borders on Every Cell & Header ---
-  async function exportExcel(){
-    if(!entries.length){ alert('No entries to export yet.'); return; }
-    
-    // Determine Month Banner Text
-    const firstDate = entries[0].date;
-    const [y, m] = firstDate.split('-');
-    const monthShort = new Date(y + '-' + m + '-01').toLocaleString('en-US', { month: 'long' }).toUpperCase();
-    const yearShort = y.slice(-2);
-    const titleText = `${monthShort} ${yearShort}  MONTH EXPENSES`;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1B24">
+<title>Expense Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--bg:#F4F1EA;--card:#fff;--in:#F7F5EF;--tx:#16242F;--dim:#6B7780;--line:#DDD6C6;--acc:#B9772B;--actx:#fff;--ok:#2F6F4F;--bad:#B5563A;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1B24;--card:#16242F;--in:#1C2E3D;--tx:#E9E3D3;--dim:#9FAEB8;--line:#2B3E4E;--acc:#C98A3E;--actx:#1A1208;--ok:#7FA08C;--bad:#D06A4C}}
+:root[data-theme="dark"]{--bg:#0F1B24;--card:#16242F;--in:#1C2E3D;--tx:#E9E3D3;--dim:#9FAEB8;--line:#2B3E4E;--acc:#C98A3E;--actx:#1A1208;--ok:#7FA08C;--bad:#D06A4C}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:14px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px;border-bottom:2px solid var(--acc)}
+h1{font:700 20px 'Source Serif 4',serif;margin:0}
+.tot{text-align:right}.tot small{display:block;color:var(--dim);font-size:10px;letter-spacing:.08em}
+.tot b{font:700 22px 'Source Serif 4',serif;color:var(--acc)}
+.bar{display:flex;gap:10px;align-items:center;padding:10px 16px 0}
+.bar span{color:var(--dim);font-size:12px;white-space:nowrap}
+main{padding:12px 16px 100px;max-width:640px;margin:0 auto}
+.v{display:none}.v.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
+input,select{width:100%;background:var(--in);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:11px 10px;font:inherit;font-size:16px}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.one{margin-bottom:10px}
+.chips{display:flex;gap:8px}
+.chip{flex:1;padding:11px;border-radius:8px;border:1px solid var(--line);background:var(--in);color:var(--tx);text-align:center;font-weight:600}
+.chip.on{background:var(--acc);color:var(--actx);border-color:var(--acc)}
+.amt{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nt{background:none;border:none;color:var(--acc);font-size:11px;padding:4px 0 0;cursor:pointer;text-align:left}
+.nt+input{margin-top:4px;font-size:13px}
+button{font:inherit;cursor:pointer}
+.btn{width:100%;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-weight:600;font-size:15px;margin-bottom:10px}
+.btn.p{background:var(--acc);color:var(--actx);border-color:var(--acc)}
+.btn.d{color:var(--bad);border-color:var(--bad)}
+.live{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.live b{color:var(--ok);font-size:18px}
+.hint{font-size:12px;color:var(--acc);margin:0 0 10px;min-height:16px}
+.e{position:relative}
+.e .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.e .dt{font-weight:600}.e .dy{color:var(--dim);font-size:11px}
+.e .t{color:var(--ok);font:700 17px 'Source Serif 4',serif}
+.e .pl{margin:4px 0;font-size:13px}
+.bd{display:inline-block;background:var(--in);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:11px;margin-left:6px}
+.cs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cs span{background:var(--in);border-radius:6px;padding:3px 7px;font-size:11.5px}
+.nts{font-size:11.5px;color:var(--dim);line-height:1.5}
+.acts{display:flex;gap:8px;margin-top:10px}
+.acts button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--tx);font-size:13px}
+.acts .x{color:var(--bad);border-color:var(--bad)}
+.srow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border:none}.srow b{color:var(--ok)}
+h2{font:600 16px 'Source Serif 4',serif;margin:0 0 8px}
+.emp{text-align:center;color:var(--dim);padding:40px 10px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
+nav button{flex:1;background:none;border:none;color:var(--dim);padding:9px 0 8px;font-size:11px}
+nav button i{display:block;font-style:normal;font-size:20px;margin-bottom:2px}
+nav button.on{color:var(--acc);font-weight:600}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%;text-align:center}
+#toast.on{opacity:1}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);margin-right:6px}.dot.on{background:var(--ok)}.dot.err{background:var(--bad)}
+.small{font-size:11.5px;color:var(--dim);line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Expense Ledger</h1>
+  <div class="tot"><small id="mlab">MONTH TOTAL</small><b id="mtot">₹0.00</b></div>
+</header>
+<div class="bar"><span>Month</span><select id="month"></select></div>
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Expense Ledger';
-    const ws = workbook.addWorksheet('Sheet1', {
-      pageSetup: {
-        paperSize: 9,              // 9 = A4 Paper
-        orientation: 'landscape',  // Landscape to fit all 14 columns across A4 width
-        fitToPage: true,
-        fitToWidth: 1,             // All columns fit 1 page wide
-        fitToHeight: 0,
-        margins: {
-          left: 0.4, right: 0.4,
-          top: 0.5, bottom: 0.5,
-          header: 0.3, footer: 0.3
-        },
-        horizontalCentered: true
-      },
-      views: [{ showGridLines: true }]
-    });
+<main>
+  <section class="v on" id="v_add">
+    <div class="card">
+      <div class="row">
+        <div><label for="date">Date</label><input type="date" id="date"></div>
+        <div><label for="day">Day</label><input id="day" readonly></div>
+      </div>
+      <p class="hint" id="hint"></p>
+      <div class="one"><label for="place">Customer place</label><input id="place" placeholder="e.g. OFFICE" autocapitalize="characters"></div>
+      <div class="one"><label>Department</label>
+        <div class="chips"><button class="chip" data-d="TMC">TMC</button><button class="chip" data-d="TAPL">TAPL</button></div></div>
+      <div class="row">
+        <div><label for="persons">No. of persons</label><input type="number" id="persons" inputmode="numeric" min="0" placeholder="0"></div>
+        <div><label for="names">Person name(s)</label><input id="names" placeholder="comma separated"></div>
+      </div>
+    </div>
+    <div class="card"><h2>Amounts (₹)</h2><div class="amt" id="amt"></div></div>
+    <div class="live"><span>Day total</span><b id="live">0.00</b></div>
+    <button class="btn p" id="save" style="margin-top:12px">Save entry</button>
+    <button class="btn" id="reset">Clear form</button>
+  </section>
 
-    // 14 Columns width configuration
-    ws.columns = [
-      { key: 'date',   width: 14.0 }, // Col A
-      { key: 'day',    width: 14.0 }, // Col B
-      { key: 'place',  width: 28.0 }, // Col C
-      { key: 'dept',   width: 16.0 }, // Col D
-      { key: 'travel', width: 12.0 }, // Col E
-      { key: 'lodge',  width: 12.0 }, // Col F
-      { key: 'local',  width: 11.0 }, // Col G
-      { key: 'brk',    width: 11.0 }, // Col H
-      { key: 'lunch',  width: 10.0 }, // Col I
-      { key: 'dinner', width: 10.0 }, // Col J
-      { key: 'snaks',  width: 11.0 }, // Col K
-      { key: 'petrol', width: 11.0 }, // Col L
-      { key: 'toll',   width: 11.0 }, // Col M
-      { key: 'total',  width: 12.0 }  // Col N
-    ];
+  <section class="v" id="v_list"><div id="list"></div></section>
 
-    // Standard Grid Thin Border (applied to all sides)
-    const allThinBorder = {
-      top:    { style: 'thin', color: { argb: 'FF000000' } },
-      left:   { style: 'thin', color: { argb: 'FF000000' } },
-      bottom: { style: 'thin', color: { argb: 'FF000000' } },
-      right:  { style: 'thin', color: { argb: 'FF000000' } }
-    };
+  <section class="v" id="v_sum">
+    <div class="card"><h2>By department</h2><div id="sdept"></div></div>
+    <div class="card"><h2>By category</h2><div id="scat"></div></div>
+  </section>
 
-    // Header & Total Row Heavy Border (medium top/bottom with thin inner walls)
-    const headerBorder = (colIdx) => ({
-      top:    { style: 'medium', color: { argb: 'FF000000' } },
-      bottom: { style: 'medium', color: { argb: 'FF000000' } },
-      left:   { style: colIdx === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
-      right:  { style: colIdx === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
-    });
+  <section class="v" id="v_more">
+    <div class="card"><h2>Google Drive sync</h2>
+      <p class="small"><span class="dot" id="sdot"></span><span id="sst"></span></p>
+      <div id="scfg"><label for="cid">Google Client ID</label><input id="cid" placeholder="xxxx.apps.googleusercontent.com" autocapitalize="off" autocorrect="off">
+      <div style="height:10px"></div><label for="cem">Allowed Google email</label><input id="cem" type="email" placeholder="you@gmail.com" autocapitalize="off"></div>
+      <button class="btn p" id="sconn" style="margin-top:12px">Connect Google Drive</button>
+      <button class="btn p" id="ssync" hidden style="margin-top:12px">Sync now</button>
+      <button class="btn d" id="sdisc" hidden>Disconnect</button></div>
+    <button class="btn p" id="export">Export month to Excel</button>
+    <button class="btn" id="import">Import from Excel</button>
+    <input type="file" id="ifile" accept=".xlsx" hidden>
+    <button class="btn d" id="clear">Clear all entries</button>
+    <p class="small">Entries are saved on this device and, once connected, synced to one file in your Google Drive. Saving an entry for a date that already exists replaces that day's entry. Export to Excel regularly as a backup.</p>
+  </section>
+</main>
 
-    // --- ROW 1: TITLE BANNER ---
-    ws.mergeCells('A1:N1');
-    const r1 = ws.getRow(1);
-    r1.height = 24;
-    const a1 = ws.getCell('A1');
-    a1.value = titleText;
-    a1.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF00B050' } };
-    a1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD0CFCF' } };
-    a1.alignment = { horizontal: 'center', vertical: 'middle' };
+<nav>
+  <button class="on" data-v="add"><i>＋</i>Add</button>
+  <button data-v="list"><i>☰</i>Entries</button>
+  <button data-v="sum"><i>▤</i>Summary</button>
+  <button data-v="more"><i>⋯</i>More</button>
+</nav>
+<div id="toast"></div>
 
-    // Apply full borders across all merged cells in Row 1
-    for(let col = 1; col <= 14; col++){
-      ws.getCell(1, col).border = {
-        top:    { style: 'medium', color: { argb: 'FF000000' } },
-        bottom: { style: 'medium', color: { argb: 'FF000000' } },
-        left:   { style: col === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
-        right:  { style: col === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
-      };
-    }
+<script>
+(function(){
+const KEY='expense_ledger_entries_v1';
+const DAYS=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+const F=[['travel','Bus/Train/Flight','Travel'],['lodge','Lodge (stay)','Lodge'],['local','Local transport','Local'],['brk','Brk fast','Brk fast'],['lunch','Lunch','Lunch'],['dinner','Dinner','Dinner'],['snaks','Snaks','Snaks'],['petrol','Petrol','Petrol'],['toll','Toll/Extra','Toll']];
+const COLS=F.map(f=>f[0]);
+const $=id=>document.getElementById(id);
+let entries=[],dept='',month='',tomb={};
 
-    // --- ROW 2: COLUMN HEADERS ---
-    const headers = [
-      'DATE', 'DAY', 'CUSTUMER PLACE', 'DEPARTMENT',
-      'BUS/TRAIN/FLIGHT', 'LODGE (STAY)', 'LOCAL TRANSPORT',
-      'BRK FAST', 'LUNCH', 'DINNER', 'SNAKS',
-      'PETROL', 'TOLL/EXTRA', 'TOTAL'
-    ];
-    const r2 = ws.addRow(headers);
-    r2.height = 42;
-    for(let col = 1; col <= 14; col++){
-      const c = r2.getCell(col);
-      c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
-      c.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: col === 14 ? 'FFF2F2F2' : 'FFDADDE1' }
-      };
-      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      c.border = headerBorder(col);
-    }
+try{const r=localStorage.getItem(KEY);entries=r?JSON.parse(r):[]}catch(e){entries=[]}
+try{tomb=JSON.parse(localStorage.getItem(KEY+'_tomb')||'{}')}catch(e){tomb={}}
+function persist(quiet){try{localStorage.setItem(KEY,JSON.stringify(entries));localStorage.setItem(KEY+'_tomb',JSON.stringify(tomb))}catch(e){toast('Could not save — storage blocked or full')}if(!quiet)sched()}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)}
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const rowTotal=e=>COLS.reduce((s,c)=>s+(e[c]||0),0);
+function toISO(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function mLabel(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleString('en-US',{month:'long',year:'numeric'})}
+function fmtDate(iso){return new Date(iso+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
 
-    // --- ROWS 3+: DATA ROWS ---
-    const startRow = 3;
-    entries.forEach((e, idx) => {
-      const rowNum = startRow + idx;
-      const isSunday = (e.day || '').toUpperCase() === 'SUNDAY';
-      const [year, month, day] = e.date.split('-').map(Number);
-      const dateObj = new Date(year, month - 1, day);
+// build amount inputs
+$('amt').innerHTML=F.map(([k,l])=>`<div><label for="a_${k}">${l}</label><input type="number" inputmode="decimal" step="0.01" id="a_${k}" placeholder="0"><button class="nt" data-k="${k}">+ note</button><input id="n_${k}" placeholder="note" hidden></div>`).join('');
+$('amt').addEventListener('click',e=>{const b=e.target.closest('.nt');if(!b)return;const n=$('n_'+b.dataset.k);n.hidden=!n.hidden;if(!n.hidden)n.focus()});
+$('amt').addEventListener('input',liveTotal);
+function liveTotal(){$('live').textContent=fmt(COLS.reduce((s,k)=>s+(parseFloat($('a_'+k).value)||0),0))}
 
-      const rowVals = [
-        dateObj,
-        e.day,
-        e.place || '',
-        e.dept || '',
-        e.travel || null,
-        e.lodge || null,
-        e.local || null,
-        e.brk || null,
-        e.lunch || null,
-        e.dinner || null,
-        e.snaks || null,
-        e.petrol || null,
-        e.toll || null,
-        { formula: `SUM(E${rowNum}:M${rowNum})` }
-      ];
+function setDept(d){dept=d;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.d===d))}
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>setDept(dept===c.dataset.d?'':c.dataset.d)));
 
-      const r = ws.addRow(rowVals);
-      r.height = 20;
+function fillForm(e){
+  $('place').value=e?e.place||'':'';setDept(e?e.dept||'':'');
+  $('persons').value=e&&e.persons?e.persons:'';$('names').value=e?e.personNames||'':'';
+  COLS.forEach(k=>{
+    $('a_'+k).value=e&&e[k]?e[k]:'';
+    const n=e&&e.notes&&e.notes[k]||'';$('n_'+k).value=n;$('n_'+k).hidden=!n;
+  });
+  liveTotal();
+  const ex=entries.some(x=>x.date===$('date').value);
+  $('hint').textContent=ex?'An entry exists for this day — saving will overwrite it.':'';
+  $('save').textContent=ex?'Update entry':'Save entry';
+}
+function onDate(){
+  const v=$('date').value;if(!v){$('day').value='';return}
+  $('day').value=DAYS[new Date(v+'T00:00:00').getDay()];
+  fillForm(entries.find(x=>x.date===v)||null);
+}
+$('date').addEventListener('change',onDate);
+$('date').value=toISO(new Date());onDate();
 
-      for(let col = 1; col <= 14; col++){
-        const c = r.getCell(col);
-        c.font = { name: 'Calibri', size: 10, bold: false };
-        // Complete thin box border around every data cell
-        c.border = allThinBorder;
-        c.alignment = { horizontal: 'center', vertical: 'middle' };
+$('save').addEventListener('click',()=>{
+  const date=$('date').value;if(!date){toast('Pick a date first');return}
+  const e={date,day:$('day').value,place:$('place').value.trim(),dept,
+    persons:parseInt($('persons').value,10)||0,personNames:$('names').value.trim(),notes:{},upd:Date.now()};
+  COLS.forEach(k=>{e[k]=parseFloat($('a_'+k).value)||0;e.notes[k]=$('n_'+k).value.trim()});
+  const i=entries.findIndex(x=>x.date===date);
+  if(i>=0)entries[i]=e;else entries.push(e);
+  entries.sort((a,b)=>a.date.localeCompare(b.date));
+  persist();month=date.slice(0,7);
+  toast(i>=0?'Entry updated':'Entry saved');
+  const d=new Date(date+'T00:00:00');d.setDate(d.getDate()+1);
+  $('date').value=toISO(d);onDate();render();
+});
+$('reset').addEventListener('click',()=>fillForm(null));
 
-        // Sunday Highlight Fill
-        if(isSunday){
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFC000' } };
-        }
+function cur(){return month==='all'?entries:entries.filter(e=>e.date.slice(0,7)===month)}
 
-        // Date Column Format
-        if(col === 1){
-          c.numFmt = 'd/mmm/yyyy;@';
-        }
+function render(){
+  const months=[...new Set(entries.map(e=>e.date.slice(0,7)))].sort();
+  if(month!=='all'&&!months.includes(month))month=months.length?months[months.length-1]:'all';
+  $('month').innerHTML='<option value="all">All months</option>'+months.map(m=>`<option value="${m}">${mLabel(m)}</option>`).join('');
+  $('month').value=month;
+  const list=cur(),total=list.reduce((s,e)=>s+rowTotal(e),0);
+  $('mtot').textContent='₹'+fmt(total);
+  $('mlab').textContent=(month==='all'?'ALL MONTHS':mLabel(month).toUpperCase())+' · '+list.length;
+  // entries (newest first)
+  $('list').innerHTML=list.length?list.slice().reverse().map(e=>{
+    const chips=F.filter(f=>e[f[0]]).map(f=>`<span>${f[2]} ${fmt(e[f[0]])}</span>`).join('');
+    const nts=F.filter(f=>e.notes&&e.notes[f[0]]).map(f=>`${f[2]}: ${esc(e.notes[f[0]])}`).join('<br>');
+    return `<div class="card e"><div class="top"><div><span class="dt">${fmtDate(e.date)}</span> <span class="dy">${e.day.slice(0,3)}</span></div><div class="t">₹${fmt(rowTotal(e))}</div></div>
+      <div class="pl">${esc(e.place)||'—'}${e.dept?`<span class="bd">${esc(e.dept)}</span>`:''}${e.persons?`<span class="bd">👤 ${e.persons}</span>`:''}</div>
+      ${e.personNames?`<div class="nts">${esc(e.personNames)}</div>`:''}
+      <div class="cs">${chips||'<span>No amounts</span>'}</div>${nts?`<div class="nts">${nts}</div>`:''}
+      <div class="acts"><button data-ed="${e.date}">Edit</button><button class="x" data-del="${e.date}">Delete</button></div></div>`}).join('')
+    :'<div class="emp">No entries yet — tap Add to create your first one.</div>';
+  // summary
+  const dm=new Map();
+  list.forEach(e=>{const k=e.dept||'(No department)';const d=dm.get(k)||{n:0,t:0};d.n++;d.t+=rowTotal(e);dm.set(k,d)});
+  $('sdept').innerHTML=[...dm].sort((a,b)=>b[1].t-a[1].t).map(([k,d])=>`<div class="srow"><span>${esc(k)} <span class="dy">(${d.n})</span></span><b>${fmt(d.t)}</b></div>`).join('')||'<div class="emp">No data</div>';
+  $('scat').innerHTML=F.map(f=>[f[1],list.reduce((s,e)=>s+(e[f[0]]||0),0)]).filter(x=>x[1]).map(([l,v])=>`<div class="srow"><span>${l}</span><b>${fmt(v)}</b></div>`).join('')
+    +(total?`<div class="srow"><span><b style="color:var(--acc)">Total</b></span><b style="color:var(--acc)">${fmt(total)}</b></div>`:'<div class="emp">No data</div>');
+}
+$('month').addEventListener('change',e=>{month=e.target.value;render()});
+$('list').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-ed]'),dl=e.target.closest('[data-del]');
+  if(ed){$('date').value=ed.dataset.ed;onDate();show('add');window.scrollTo(0,0)}
+  if(dl&&confirm('Delete entry for '+fmtDate(dl.dataset.del)+'?')){tomb[dl.dataset.del]=Date.now();entries=entries.filter(x=>x.date!==dl.dataset.del);persist();onDate();render();toast('Deleted')}
+});
 
-        // Expense Numeric Columns Format
-        if(col >= 5 && col <= 14){
-          c.numFmt = '#,##0.00;(#,##0.00);"-"';
-        }
-      }
-    });
+function show(v){
+  document.querySelectorAll('.v').forEach(s=>s.classList.toggle('on',s.id==='v_'+v));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.v)));
 
-    const lastDataRow = startRow + entries.length - 1;
-
-    // --- TOTAL FOOTER ROW ---
-    const totalRowIndex = lastDataRow + 1;
-    const footerVals = new Array(14).fill(null);
-    footerVals[0] = ''; // Col A
-    footerVals[13] = { formula: `SUM(N${startRow}:N${lastDataRow})` }; // Col N
-
-    const totalRow = ws.addRow(footerVals);
-    totalRow.height = 22;
-
-    for(let col = 1; col <= 14; col++){
-      const c = totalRow.getCell(col);
-      c.font = { name: 'Calibri', size: 11, bold: true };
-      c.alignment = { horizontal: 'center', vertical: 'middle' };
-      // All borders enclosed for the total row
-      c.border = {
-        top:    { style: 'medium', color: { argb: 'FF000000' } },
-        bottom: { style: 'double', color: { argb: 'FF000000' } },
-        left:   { style: col === 1 ? 'medium' : 'thin', color: { argb: 'FF000000' } },
-        right:  { style: col === 14 ? 'medium' : 'thin', color: { argb: 'FF000000' } }
-      };
-      if(col === 14){
-        c.numFmt = '#,##0.00';
-      }
-    }
-
-    // Generate blob and trigger file download
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const filename = `${titleText.replace(/\s+/g, '_')}.xlsx`;
-    saveAs(blob, filename);
+// ---- Excel export / import ----
+async function exportXlsx(){
+  const list=cur();if(!list.length){toast('No entries to export');return}
+  const dl=window.claude?await claude.use('downloads'):null;
+  const mt=month==='all'?'ALL MONTHS':mLabel(month).toUpperCase();
+  const H=['DATE','DAY','CUSTUMER PLACE','DEPARTMENT','NO OF\nPERSONS','BUS/TRAIN\n/FLIGHT','LODGE\n(STAY)','LOCAL\nTRANSPORT','BRK FAST','LUNCH','DINNER','SNAKS','PETROL','TOLL/\nEXTRA','TOTAL'];
+  const grand=list.reduce((s,e)=>s+rowTotal(e),0);
+  const wb=new ExcelJS.Workbook();
+  const ws=sheet(wb,'Expenses',mt+' EXPENSES',H,list.map(e=>[fmtDate(e.date),e.day,e.place||'',e.dept||'',e.persons||'',...COLS.map(k=>e[k]||''),rowTotal(e)]),
+    [...Array(13).fill(''),'TOTAL',grand],[14,14,28,14,9,13,10,12,9,9,9,9,10,10,11]);
+  list.forEach((e,i)=>{
+    if(e.personNames)ws.getCell(3+i,5).note='Persons: '+e.personNames;
+    COLS.forEach((k,j)=>{if(e.notes&&e.notes[k])ws.getCell(3+i,6+j).note=e.notes[k]});
+  });
+  const dm=new Map();
+  list.forEach(e=>{const k=e.dept||'(No department)';if(!dm.has(k))dm.set(k,{n:0,t:0,...Object.fromEntries(COLS.map(c=>[c,0]))});const d=dm.get(k);d.n++;d.t+=rowTotal(e);COLS.forEach(c=>d[c]+=e[c]||0)});
+  sheet(wb,'Department Summary',mt+' — DEPARTMENT SUMMARY',['DEPARTMENT','ENTRIES',...H.slice(5,14),'TOTAL'],
+    [...dm].sort((a,b)=>b[1].t-a[1].t).map(([k,d])=>[k,d.n,...COLS.map(c=>d[c]||''),d.t]),
+    ['TOTAL',list.length,...COLS.map(c=>list.reduce((s,e)=>s+(e[c]||0),0)),grand],[16,9,13,10,12,9,9,9,9,9,10,11]);
+  try{
+    const buf=await wb.xlsx.writeBuffer();
+    const fn=mt.replace(/\s+/g,'_')+'_EXPENSES.xlsx';
+    if(dl)await dl.save({filename:fn,data:buf});
+    else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=fn;document.body.appendChild(a);a.click();a.remove()}
+    toast('Export ready');
+  }catch(e){if(!e||e.code!=='declined')toast('Export failed')}
+}
+function sheet(wb,name,title,H,rows,totalRow,widths){
+  const ws=wb.addWorksheet(name,{pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  ws.columns=widths.map(w=>({width:w}));
+  const n=H.length,tr=3+rows.length+1,bd={style:'thin',color:{argb:'FF000000'}},fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9D9D9'}};
+  ws.mergeCells(1,1,1,n);
+  const t=ws.getCell(1,1);t.value=title;t.font={bold:true,size:12,color:{argb:'FF008000'}};t.alignment={horizontal:'center'};t.fill=fill;
+  H.forEach((h,i)=>{const c=ws.getCell(2,i+1);c.value=h;c.font={bold:true};c.fill=fill;c.alignment={horizontal:'center',vertical:'middle',wrapText:true}});
+  rows.forEach((r,ri)=>r.forEach((v,ci)=>{const c=ws.getCell(3+ri,ci+1);c.value=v;c.alignment={horizontal:'center',wrapText:true};if(typeof v==='number')c.numFmt='0.00'}));
+  totalRow.forEach((v,ci)=>{const c=ws.getCell(tr,ci+1);c.value=v;c.font={bold:true};c.alignment={horizontal:'center'};if(typeof v==='number')c.numFmt='0.00'});
+  for(let R=1;R<=tr;R++){if(R===tr-1)continue;for(let C=1;C<=n;C++)ws.getCell(R,C).border={top:bd,bottom:bd,left:bd,right:bd}}
+  ws.getRow(2).height=30;
+  return ws;
+}
+const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+function pDate(v){
+  if(v instanceof Date&&!isNaN(v))return toISO(v);
+  if(typeof v==='number'&&v>0)return toISO(new Date(Math.round((v-25569)*864e5)));
+  if(typeof v==='string'){
+    const s=v.trim();let m=s.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3,9})[-\/ ](\d{2,4})$/);
+    if(m){const mo=MON[m[2].slice(0,3).toLowerCase()];if(mo!==undefined){let y=+m[3];if(y<100)y+=2000;return toISO(new Date(y,mo,+m[1]))}}
+    m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+    m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);if(m){let y=+m[3];if(y<100)y+=2000;return toISO(new Date(y,+m[2]-1,+m[1]))}
   }
+  return null;
+}
+const cv=v=>v==null?'':(typeof v==='object'&&v.text!==undefined?v.text:(typeof v==='object'&&v.result!==undefined?v.result:v));
+const nc=v=>{const n=parseFloat(cv(v));return isNaN(n)?0:n};
+const noteOf=c=>{const n=c.note;return n?(typeof n==='string'?n:(n.texts||[]).map(t=>t.text).join('')):''};
+async function importXlsx(file){
+  if(!file)return;
+  try{
+    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+    const ws=wb.worksheets.find(s=>/expense/i.test(s.name)&&!/summary/i.test(s.name))||wb.worksheets[0];
+    const imp=[];
+    ws.eachRow({includeEmpty:false},(row,rn)=>{
+      if(rn<3)return;
+      const date=pDate(cv(row.getCell(1).value));if(!date)return;
+      const pm=noteOf(row.getCell(5)).match(/^Persons:\s*(.*)$/);
+      const e={date,day:DAYS[new Date(date+'T00:00:00').getDay()],place:String(cv(row.getCell(3).value)||'').trim(),dept:String(cv(row.getCell(4).value)||'').trim(),
+        persons:nc(row.getCell(5).value),personNames:pm?pm[1]:'',notes:{},upd:Date.now()};
+      COLS.forEach((k,i)=>{e[k]=nc(row.getCell(6+i).value);e.notes[k]=noteOf(row.getCell(6+i))});
+      imp.push(e);
+    });
+    if(!imp.length){toast('No importable rows found');return}
+    imp.forEach(n=>{const i=entries.findIndex(x=>x.date===n.date);if(i>=0)entries[i]=n;else entries.push(n)});
+    entries.sort((a,b)=>a.date.localeCompare(b.date));persist();onDate();render();
+    toast('Imported '+imp.length+' entries');
+  }catch(e){toast('Could not read that file')}
+}
+$('export').addEventListener('click',exportXlsx);
+$('import').addEventListener('click',()=>$('ifile').click());
+$('ifile').addEventListener('change',e=>{importXlsx(e.target.files[0]);e.target.value=''});
+$('clear').addEventListener('click',()=>{
+  if(entries.length&&confirm('Delete all '+entries.length+' entries? This cannot be undone.')){const t=Date.now();entries.forEach(x=>tomb[x.date]=t);entries=[];persist();onDate();render()}
+});
+
+
+// ---- Google Drive sync ----
+const CFG='expense_ledger_cfg',FILE='expense-ledger-data.json',API='https://www.googleapis.com/drive/v3/files';
+let cfg={cid:'',email:'',fid:'',on:false,acct:'',last:0},tok='',tokExp=0,busy=false,timer;
+try{Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}'))}catch(e){}
+function saveCfg(){try{localStorage.setItem(CFG,JSON.stringify(cfg))}catch(e){}}
+function setStat(msg,err){
+  $('sst').textContent=msg||(cfg.on?'Synced '+new Date(cfg.last).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+' · '+cfg.acct:'Not connected — entries stay on this device');
+  $('sdot').className='dot'+(err?' err':cfg.on?' on':'');
+  $('scfg').hidden=cfg.on;$('sconn').hidden=cfg.on;$('ssync').hidden=!cfg.on;$('sdisc').hidden=!cfg.on;
+  if(err)toast(msg);
+}
+function auth(){
+  return new Promise((res,rej)=>{
+    if(!window.google||!google.accounts)return rej(new Error('Google library not loaded — check internet'));
+    if(!cfg.cid)return rej(new Error('Enter your Client ID first'));
+    google.accounts.oauth2.initTokenClient({client_id:cfg.cid,scope:'https://www.googleapis.com/auth/drive.file',
+      callback:r=>{if(r.error)rej(new Error(r.error));else{tok=r.access_token;tokExp=Date.now()+(r.expires_in-60)*1000;res()}},
+      error_callback:e=>rej(new Error('Sign-in not completed — tap Sync now'))
+    }).requestAccessToken({prompt:cfg.on?'':'select_account',login_hint:cfg.email||undefined});
+  });
+}
+async function g(url,o={}){
+  const r=await fetch(url,{...o,headers:{Authorization:'Bearer '+tok,...(o.headers||{})}});
+  if(!r.ok)throw new Error('Drive error '+r.status);return r;
+}
+async function readRem(f){
+  const t=await(await g(API+'/'+f+'?alt=media')).text();
+  try{const j=JSON.parse(t);return Array.isArray(j)?{entries:j}:j}catch(e){return{}}
+}
+function merge(rem){
+  const T={...tomb};Object.entries(rem.deleted||{}).forEach(([d,t])=>{if(t>(T[d]||0))T[d]=t});
+  const m=new Map();
+  [...(rem.entries||[]),...entries].forEach(e=>{const o=m.get(e.date);if(!o||(e.upd||0)>=(o.upd||0))m.set(e.date,e)});
+  entries=[...m.values()].filter(e=>(T[e.date]||0)<=(e.upd||0)).sort((a,b)=>a.date.localeCompare(b.date));tomb=T;
+}
+async function sync(){
+  if(busy)return;busy=true;setStat('Syncing…');
+  try{
+    if(!tok||Date.now()>tokExp)await auth();
+    if(!cfg.on){
+      const u=await(await g('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)')).json();
+      const em=(u.user&&u.user.emailAddress||'').toLowerCase();
+      if(cfg.email&&em!==cfg.email.toLowerCase()){try{google.accounts.oauth2.revoke(tok)}catch(e){}tok='';throw new Error('Signed in as '+em+' — expected '+cfg.email)}
+      cfg.acct=em;
+    }
+    let fid=cfg.fid,rem={};
+    if(fid){try{rem=await readRem(fid)}catch(e){fid=''}}
+    if(!fid){
+      const l=await(await g(API+'?q='+encodeURIComponent("name='"+FILE+"' and trashed=false")+'&fields=files(id)')).json();
+      if(l.files&&l.files[0]){fid=l.files[0].id;rem=await readRem(fid)}
+      else fid=(await(await g(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FILE,mimeType:'application/json'})})).json()).id;
+    }
+    merge(rem);persist(true);render();onDate();
+    await g('https://www.googleapis.com/upload/drive/v3/files/'+fid+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries,deleted:tomb})});
+    cfg.fid=fid;cfg.on=true;cfg.last=Date.now();saveCfg();busy=false;setStat();
+  }catch(e){busy=false;setStat(e.message,true)}
+}
+function sched(){if(!cfg.on)return;clearTimeout(timer);timer=setTimeout(sync,1200)}
+$('cid').value=cfg.cid;$('cem').value=cfg.email;
+$('sconn').addEventListener('click',()=>{cfg.cid=$('cid').value.trim();cfg.email=$('cem').value.trim();saveCfg();sync()});
+$('ssync').addEventListener('click',sync);
+$('sdisc').addEventListener('click',()=>{if(!confirm('Disconnect Drive? Entries stay on this device.'))return;try{if(tok)google.accounts.oauth2.revoke(tok)}catch(e){}tok='';cfg.on=false;cfg.fid='';saveCfg();setStat()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cfg.on&&tok&&Date.now()<tokExp)sync()});
+
+const ms=entries.length?entries[entries.length-1].date.slice(0,7):'all';month=ms;
+render();setStat();
+if(cfg.on)window.addEventListener('load',()=>setTimeout(sync,500));
+})();
+</script>
+</body>
+</html>
